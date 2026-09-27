@@ -1,7 +1,5 @@
 # ServiceFlow
 
-# ServiceFlow
-
 Sistema Full Stack de gestão para oficinas, assistências técnicas e empresas de prestação de serviços.
 
 O **ServiceFlow** centraliza o gerenciamento de clientes, equipamentos, ordens de serviço, orçamentos e financeiro em um único sistema, além de disponibilizar um dashboard com indicadores da operação.
