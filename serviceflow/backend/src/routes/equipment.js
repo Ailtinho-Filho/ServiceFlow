@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const { z } = require('zod');
+const prisma = require('../services/prisma');
+const { auth } = require('../middlewares/auth');
+router.use(auth);
+const schema = z.object({ customerId: z.string().min(1), name: z.string().min(2), brand: z.string().optional(), model: z.string().optional(), serialNumber: z.string().optional(), description: z.string().optional() });
+router.get('/', async (_req, res, next) => { try { res.json(await prisma.equipment.findMany({ orderBy: { createdAt: 'desc' }, include: { customer: true } })); } catch(e){next(e);} });
+router.post('/', async (req,res,next)=>{try{res.status(201).json(await prisma.equipment.create({data:schema.parse(req.body)}));}catch(e){next(e);}});
+router.put('/:id', async (req,res,next)=>{try{res.json(await prisma.equipment.update({where:{id:req.params.id},data:schema.partial().parse(req.body)}));}catch(e){next(e);}});
+router.delete('/:id', async (req,res,next)=>{try{await prisma.equipment.delete({where:{id:req.params.id}});res.status(204).end();}catch(e){next(e);}});
+module.exports=router;

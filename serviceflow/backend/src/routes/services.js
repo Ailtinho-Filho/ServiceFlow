@@ -1,0 +1,12 @@
+const router = require('express').Router();
+const { z } = require('zod');
+const prisma = require('../services/prisma');
+const { auth } = require('../middlewares/auth');
+router.use(auth);
+const createSchema = z.object({ customerId: z.string(), equipmentId: z.string().optional(), technicianId: z.string().optional(), title: z.string().min(3), description: z.string().optional(), status: z.enum(['RECEIVED','DIAGNOSIS','QUOTE','APPROVED','IN_PROGRESS','READY','DELIVERED','CANCELED']).optional(), laborCost: z.number().nonnegative().optional(), partsCost: z.number().nonnegative().optional(), dueDate: z.string().datetime().optional() });
+router.get('/', async (req,res,next)=>{try{const status=String(req.query.status||'');res.json(await prisma.service.findMany({where:status?{status}:undefined,orderBy:{createdAt:'desc'},include:{customer:true,equipment:true,technician:{select:{id:true,name:true}},quote:true}}));}catch(e){next(e);}});
+router.post('/', async (req,res,next)=>{try{const d=createSchema.parse(req.body);const labor=d.laborCost||0,parts=d.partsCost||0;res.status(201).json(await prisma.service.create({data:{...d,dueDate:d.dueDate?new Date(d.dueDate):undefined,laborCost:labor,partsCost:parts,totalCost:labor+parts}}));}catch(e){next(e);}});
+router.get('/:id', async(req,res,next)=>{try{const s=await prisma.service.findUnique({where:{id:req.params.id},include:{customer:true,equipment:true,technician:{select:{id:true,name:true}},quote:true}});if(!s)return res.status(404).json({error:'Serviço não encontrado'});res.json(s);}catch(e){next(e);}});
+router.patch('/:id/status', async(req,res,next)=>{try{const {status}=z.object({status:createSchema.shape.status.unwrap()}).parse(req.body);const data={status};if(status==='DELIVERED')data.deliveredAt=new Date();res.json(await prisma.service.update({where:{id:req.params.id},data}));}catch(e){next(e);}});
+router.put('/:id', async(req,res,next)=>{try{const d=createSchema.partial().parse(req.body);const labor=d.laborCost,parts=d.partsCost;const current=await prisma.service.findUnique({where:{id:req.params.id}});const data={...d,dueDate:d.dueDate?new Date(d.dueDate):undefined};delete data.laborCost;delete data.partsCost;if(labor!==undefined)data.laborCost=labor;if(parts!==undefined)data.partsCost=parts;if(labor!==undefined||parts!==undefined)data.totalCost=(labor??Number(current.laborCost))+(parts??Number(current.partsCost));res.json(await prisma.service.update({where:{id:req.params.id},data}));}catch(e){next(e);}});
+module.exports=router;

@@ -1,0 +1,11 @@
+const router=require('express').Router();
+const {z}=require('zod');
+const prisma=require('../services/prisma');
+const {auth}=require('../middlewares/auth');
+router.use(auth);
+const schema=z.object({description:z.string().min(2),type:z.enum(['INCOME','EXPENSE']),status:z.enum(['PENDING','PAID','OVERDUE','CANCELED']).optional(),amount:z.number().positive(),dueDate:z.string().datetime(),paidAt:z.string().datetime().optional(),category:z.string().optional(),reference:z.string().optional()});
+router.get('/',async(req,res,next)=>{try{const type=String(req.query.type||'');res.json(await prisma.payment.findMany({where:type?{type}:undefined,orderBy:{dueDate:'desc'}}));}catch(e){next(e);}});
+router.post('/',async(req,res,next)=>{try{const d=schema.parse(req.body);res.status(201).json(await prisma.payment.create({data:{...d,dueDate:new Date(d.dueDate),paidAt:d.paidAt?new Date(d.paidAt):undefined}}));}catch(e){next(e);}});
+router.patch('/:id/status',async(req,res,next)=>{try{const {status}=z.object({status:z.enum(['PENDING','PAID','OVERDUE','CANCELED'])}).parse(req.body);res.json(await prisma.payment.update({where:{id:req.params.id},data:{status,paidAt:status==='PAID'?new Date():undefined}}));}catch(e){next(e);}});
+router.delete('/:id',async(req,res,next)=>{try{await prisma.payment.delete({where:{id:req.params.id}});res.status(204).end();}catch(e){next(e);}});
+module.exports=router;
